@@ -22,6 +22,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.projectiles.ProjectileSource;
+import org.eclipse.jdt.annotation.NonNull;
 
 import me.NoChance.PvPManager.Settings.Messages;
 import me.NoChance.PvPManager.Settings.Settings;
@@ -101,7 +102,7 @@ public final class CombatUtils {
 		if (defender instanceof Player && !isNPC(defender)) {
 			if (attacker instanceof Player && !isNPC(attacker))
 				return true;
-			if (attacker instanceof Projectile || CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.9") && attacker instanceof AreaEffectCloud) {
+			if (attacker instanceof Projectile || CombatUtils.isMCVersionAtLeast(MCVersion.V1_9) && attacker instanceof AreaEffectCloud) {
 				final ProjectileSource projSource = getSource(attacker);
 				if (projSource instanceof Player) {
 					final Entity shooter = (Entity) projSource;
@@ -174,7 +175,7 @@ public final class CombatUtils {
 		}
 	}
 
-	public static boolean isOnline(final String name) {
+	public static boolean isOnline(@NonNull final String name) {
 		return Bukkit.getPlayer(name) != null;
 	}
 
@@ -186,8 +187,8 @@ public final class CombatUtils {
 		return true;
 	}
 
-	public static boolean isOnline(final UUID id) {
-		return Bukkit.getPlayer(id) != null;
+	public static boolean isOnline(@NonNull final UUID uuid) {
+		return Bukkit.getPlayer(uuid) != null;
 	}
 
 	public static boolean isReal(final UUID id) {
@@ -205,11 +206,11 @@ public final class CombatUtils {
 	public static boolean recursiveContainsCommand(final String[] givenCommand, final List<String> list) {
 		boolean contains = false;
 		for (int i = 0; i < givenCommand.length; i++) {
-			String args = givenCommand[0];
+			final StringBuilder args = new StringBuilder(givenCommand[0]);
 			for (int j = 1; j <= i; j++) {
-				args += " " + givenCommand[j];
+				args.append(" ").append(givenCommand[j]);
 			}
-			if (list.contains(args.toLowerCase())) {
+			if (list.contains(args.toString().toLowerCase())) {
 				contains = true;
 				break;
 			}
@@ -237,6 +238,10 @@ public final class CombatUtils {
 			Log.severe("Error reading version number! Comparing " + v1 + " to " + v2);
 		}
 		return true;
+	}
+
+	public static final boolean isMCVersionAtLeast(final MCVersion version) {
+		return Settings.getMinecraftVersion().ordinal() >= version.ordinal();
 	}
 
 	public static String stripTags(final String version) {

@@ -9,6 +9,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 import org.jetbrains.annotations.NotNull;
@@ -16,9 +17,9 @@ import org.jetbrains.annotations.NotNull;
 import me.NoChance.PvPManager.PvPManager;
 import me.NoChance.PvPManager.PvPlayer;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.WorldGuardHook;
+import me.NoChance.PvPManager.Dependencies.API.WorldGuardDependency;
 import me.NoChance.PvPManager.Events.PlayerCombatLogEvent;
-import me.NoChance.PvPManager.Player.CancelResult;
+import me.NoChance.PvPManager.Player.ProtectionResult;
 import me.NoChance.PvPManager.Settings.Messages;
 import me.NoChance.PvPManager.Settings.Settings;
 import me.NoChance.PvPManager.Tasks.CleanKillersTask;
@@ -35,14 +36,14 @@ public class PlayerHandler {
 	private final DependencyManager dependencyManager;
 	private final PvPManager plugin;
 	private final TagTask tagTask;
-	private final WorldGuardHook worldguard;
+	private final WorldGuardDependency worldguard;
 
 	public PlayerHandler(final PvPManager plugin) {
 		this.plugin = plugin;
 		this.configManager = plugin.getConfigM();
 		this.dependencyManager = plugin.getDependencyManager();
 		this.tagTask = new TagTask(plugin.getDisplayManager());
-		this.worldguard = (WorldGuardHook) dependencyManager.getDependency(Hook.WORLDGUARD);
+		this.worldguard = (WorldGuardDependency) dependencyManager.getDependency(Hook.WORLDGUARD);
 		if (Settings.isKillAbuseEnabled()) {
 			ScheduleUtils.runAsyncTimer(new CleanKillersTask(this), Settings.getKillAbuseTime() * 20L, Settings.getKillAbuseTime() * 20L);
 		}
@@ -53,15 +54,15 @@ public class PlayerHandler {
 		addOnlinePlayers();
 	}
 
-	public final CancelResult tryCancel(final Player damager, final Player defender) {
+	public final ProtectionResult tryCancel(final Player damager, final Player defender) {
 		final PvPlayer attacker = get(damager);
 		final PvPlayer attacked = get(defender);
 		if (attacker.hasOverride() || Settings.borderHoppingVulnerable() && canAttackHooks(attacker, attacked))
-			return CancelResult.FAIL_OVERRIDE;
+			return ProtectionResult.FAIL_OVERRIDE;
 		if (attacked.hasRespawnProtection() || attacker.hasRespawnProtection())
-			return CancelResult.RESPAWN_PROTECTION.setAttackerCaused(attacker.hasRespawnProtection());
+			return ProtectionResult.RESPAWN_PROTECTION.setAttackerCaused(attacker.hasRespawnProtection());
 		if (attacked.isNewbie() || attacker.isNewbie())
-			return CancelResult.NEWBIE.setAttackerCaused(attacker.isNewbie());
+			return ProtectionResult.NEWBIE.setAttackerCaused(attacker.isNewbie());
 		if (!attacker.hasPvPEnabled() || !attacked.hasPvPEnabled()) {
 			if (worldguard != null && (Settings.isWorldguardOverrides() && worldguard.hasAllowPvPFlag(defender)
 			        || worldguard.containsRegionsAt(defender.getLocation(), Settings.getWorldguardOverridesList()))) {
@@ -73,12 +74,12 @@ public class PlayerHandler {
 					attacked.setPvP(true);
 					attacked.message(Messages.getPvpForceEnabledWG());
 				}
-				return CancelResult.FAIL_PLUGIN_HOOK;
+				return ProtectionResult.FAIL_PLUGIN_HOOK;
 			} else if (dependencyManager.shouldDisableProtection(damager, defender)) // TODO add worldguard overrides in this
-				return CancelResult.FAIL_PLUGIN_HOOK;
-			return CancelResult.PVPDISABLED.setAttackerCaused(!attacker.hasPvPEnabled());
+				return ProtectionResult.FAIL_PLUGIN_HOOK;
+			return ProtectionResult.PVPDISABLED.setAttackerCaused(!attacker.hasPvPEnabled());
 		}
-		return CancelResult.FAIL;
+		return ProtectionResult.FAIL;
 	}
 
 	/**
@@ -93,8 +94,7 @@ public class PlayerHandler {
 	 * @return true if the attack didn't get blocked or if it got override, otherwise false
 	 */
 	public final boolean canAttack(final Player attacker, final Player defender) {
-		final CancelResult cr = tryCancel(attacker, defender);
-		return cr.canAttack();
+		return tryCancel(attacker, defender).canAttack();
 	}
 
 	private boolean canAttackHooks(final PvPlayer attacker, final PvPlayer defender) {
@@ -104,7 +104,7 @@ public class PlayerHandler {
 	}
 
 	/**
-	 * @param player
+	 * @param player the player instance
 	 * @return PvPlayer instance for the provided player
 	 */
 	@NotNull
@@ -218,15 +218,15 @@ public class PlayerHandler {
 
 	public void handlePluginDisable() {
 		tagTask.cancel();
-		for (final PvPlayer p : players.values()) {
-			p.cleanForRemoval();
+		for (final PvPlayer p : new HashSet<>(players.values())) {
+			removeUser(p);
 		}
 		removeTeams();
 		Log.info("Saving player data to storage...");
 		PvPlayer.shutdownExecutorAndWait();
 	}
 
-	private final void removeTeams() {
+	private void removeTeams() {
 		final Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
 		final Team pvpon = scoreboard.getTeam("PvPOn");
 		if (pvpon != null) {
@@ -236,14 +236,18 @@ public class PlayerHandler {
 		if (pvpoff != null) {
 			pvpoff.unregister();
 		}
+		final Objective health = scoreboard.getObjective("PvP_Health");
+		if (health != null) {
+			health.unregister();
+		}
 	}
 
 	// TODO replace untag and tag with gettagtask
-	public final void untag(final PvPlayer p) {
+	public final void removeFromTagTask(final PvPlayer p) {
 		tagTask.untag(p);
 	}
 
-	public final void tag(final PvPlayer p) {
+	public final void addToTagTask(final PvPlayer p) {
 		tagTask.addTagged(p);
 	}
 
@@ -254,7 +258,8 @@ public class PlayerHandler {
 	public final Set<PvPlayer> getPlayersInCombat() {
 		return tagTask.getTaggedPlayers();
 	}
-
+	
+	@NotNull
 	public final PvPManager getPlugin() {
 		return plugin;
 	}

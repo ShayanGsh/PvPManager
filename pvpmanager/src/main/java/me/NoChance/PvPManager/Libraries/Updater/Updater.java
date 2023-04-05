@@ -38,12 +38,7 @@ public abstract class Updater {
 			Bukkit.getUpdateFolderFile().mkdirs();
 		}
 		this.file = new File(Bukkit.getUpdateFolderFile(), plugin.getName() + ".jar");
-		this.thread = new Thread() {
-			@Override
-			public void run() {
-				runUpdater();
-			}
-		};
+		this.thread = new Thread(this::runUpdater);
 	}
 
 	public final UpdateResult getResult() {

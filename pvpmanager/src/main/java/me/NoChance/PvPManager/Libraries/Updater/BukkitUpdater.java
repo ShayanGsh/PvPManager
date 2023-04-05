@@ -40,7 +40,6 @@ public class BukkitUpdater extends Updater {
 		}
 	}
 
-	@SuppressWarnings("resource")
 	@Override
 	public final boolean downloadFile() {
 		try {

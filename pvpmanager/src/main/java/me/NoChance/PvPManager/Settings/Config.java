@@ -26,7 +26,6 @@ public class Config extends YamlConfiguration {
 	private final FileConfiguration config;
 	private final PvPManager plugin;
 
-	@SuppressWarnings("resource")
 	public Config(final PvPManager plugin, final String name) throws FileNotFoundException {
 		this.plugin = plugin;
 		this.file = new File(plugin.getDataFolder(), name);
@@ -99,7 +98,6 @@ public class Config extends YamlConfiguration {
 		return this.config.getList(path, def);
 	}
 
-	@SuppressWarnings("resource")
 	private void prepareFile(final String resource) {
 		try {
 			file.getParentFile().mkdirs();
@@ -143,7 +141,7 @@ public class Config extends YamlConfiguration {
 		int lastLine = 0;
 		int headerLine = 0;
 		final String[] lines = configString.split("\n");
-		final StringBuilder config1 = new StringBuilder("");
+		final StringBuilder config1 = new StringBuilder();
 		for (final String line : lines)
 			if (line.startsWith(this.getPluginName() + "_COMMENT")) {
 				final String comment = "#" + line.trim().substring(line.indexOf(":") + 1);

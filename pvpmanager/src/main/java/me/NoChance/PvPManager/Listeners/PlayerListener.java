@@ -1,5 +1,9 @@
 package me.NoChance.PvPManager.Listeners;
 
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
@@ -24,29 +28,36 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.event.player.PlayerToggleFlightEvent;
 import org.bukkit.inventory.ItemStack;
+
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+
 import me.NoChance.PvPManager.PvPlayer;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.WorldGuardHook;
+import me.NoChance.PvPManager.Dependencies.API.WorldGuardDependency;
 import me.NoChance.PvPManager.Managers.PlayerHandler;
-import me.NoChance.PvPManager.Player.CancelResult;
+import me.NoChance.PvPManager.Player.ProtectionResult;
 import me.NoChance.PvPManager.Settings.Messages;
 import me.NoChance.PvPManager.Settings.Settings;
+import me.NoChance.PvPManager.Utils.ChatUtils;
 import me.NoChance.PvPManager.Utils.CombatUtils;
 import me.chancesd.pvpmanager.utils.ScheduleUtils;
+import me.NoChance.PvPManager.Utils.MCVersion;
 
 @SuppressWarnings("deprecation")
 public class PlayerListener implements Listener {
 
 	private final PlayerHandler ph;
-	private final WorldGuardHook wg;
+	private final WorldGuardDependency wg;
 	private Material mushroomSoup;
+	private final Cache<UUID, String> msgCooldown = CacheBuilder.newBuilder().weakValues().expireAfterWrite(800, TimeUnit.MILLISECONDS).build();
 
 	public PlayerListener(final PlayerHandler ph) {
 		this.ph = ph;
-		this.wg = (WorldGuardHook) ph.getPlugin().getDependencyManager().getDependency(Hook.WORLDGUARD);
-		if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.13")) {
+		this.wg = (WorldGuardDependency) ph.getPlugin().getDependencyManager().getDependency(Hook.WORLDGUARD);
+		if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_13)) {
 			mushroomSoup = Material.MUSHROOM_STEW;
-		} else if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.0")) { // avoid loading Material class on unit tests
+		} else if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_8)) { // avoid loading Material class on unit tests
 			mushroomSoup = Material.getMaterial("MUSHROOM_SOUP");
 		}
 	}
@@ -68,9 +79,19 @@ public class PlayerListener implements Listener {
 
 	@EventHandler(ignoreCancelled = true)
 	public final void onPlayerEat(final PlayerItemConsumeEvent event) {
-		if (Settings.isBlockEat() && ph.get(event.getPlayer()).isInCombat() && event.getItem().getType().isEdible()) {
+		final Material type = event.getItem().getType();
+		final PvPlayer player = ph.get(event.getPlayer());
+		if (Settings.isBlockEat() && player.isInCombat() && type.isEdible()) {
 			event.setCancelled(true);
 			ph.get(event.getPlayer()).sendActionBar(Messages.getEatBlockedInCombat());
+		}
+		if (Settings.getItemCooldowns().containsKey(type)) {
+			if (player.hasItemCooldown(type)) {
+				event.setCancelled(true);
+				player.message(Messages.getItemCooldown(player.getItemCooldown(type)));
+				return;
+			}
+			player.setItemCooldown(type, Settings.getItemCooldowns().get(type));
 		}
 	}
 
@@ -85,7 +106,11 @@ public class PlayerListener implements Listener {
 			CombatUtils.executeCommands(Settings.getCommandsOnPvPLog(), player, player.getName());
 			ph.applyPunishments(pvPlayer);
 		}
-		ph.removeUser(pvPlayer);
+	}
+
+	@EventHandler(priority = EventPriority.MONITOR)
+	public final void onPlayerLogoutMonitor(final PlayerQuitEvent event) {
+		Bukkit.getScheduler().runTask(ph.getPlugin(), () -> ph.removeUser(ph.get(event.getPlayer())));
 	}
 
 	@EventHandler(priority = EventPriority.HIGH)
@@ -115,10 +140,10 @@ public class PlayerListener implements Listener {
 		}
 
 		if (pvPlayer.isInCombat()) {
-			ph.untag(pvPlayer);
+			pvPlayer.unTag();
 			final PvPlayer enemy = pvPlayer.getEnemy();
 			if (Settings.isUntagEnemy() && enemy != null && pvPlayer.equals(enemy.getEnemy())) {
-				ph.untag(enemy);
+				enemy.unTag();
 			}
 		}
 
@@ -138,14 +163,15 @@ public class PlayerListener implements Listener {
 			return;
 
 		final ItemStack i = player.getItemInHand();
-		if (Settings.isAutoSoupEnabled() && i.getType() == mushroomSoup) {
+		final Material type = i.getType();
+		if (Settings.isAutoSoupEnabled() && type == mushroomSoup) {
 			if (player.getHealth() == player.getMaxHealth())
 				return;
 			player.setHealth(
 					player.getHealth() + Settings.getSoupHealth() > player.getMaxHealth() ? player.getMaxHealth()
 							: player.getHealth() + Settings.getSoupHealth());
 			if (Settings.isSoupBowlDisappear()) {
-				if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.9")) {
+				if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_9)) {
 					player.getInventory().getItemInMainHand().setAmount(0);
 				} else {
 					player.getInventory().setItemInHand(null);
@@ -153,6 +179,19 @@ public class PlayerListener implements Listener {
 				}
 			} else {
 				i.setType(Material.BOWL);
+			}
+		}
+		final PvPlayer pvplayer = ph.get(player);
+		if ((e.getAction() == Action.RIGHT_CLICK_BLOCK || e.getAction() == Action.RIGHT_CLICK_AIR) && Settings.getItemCooldowns().containsKey(type)) {
+			if (pvplayer.hasItemCooldown(type)) {
+				final String msg = Messages.getItemCooldown(pvplayer.getItemCooldown(type));
+				if (!msg.equals(msgCooldown.getIfPresent(player.getUniqueId()))) {
+					pvplayer.message(msg);
+					msgCooldown.put(player.getUniqueId(), msg);
+				}
+				e.setCancelled(true);
+			} else if (!type.isEdible()) {
+				Bukkit.getScheduler().runTask(ph.getPlugin(), () -> pvplayer.setItemCooldown(type, Settings.getItemCooldowns().get(type)));
 			}
 		}
 	}
@@ -201,13 +240,11 @@ public class PlayerListener implements Listener {
 	public final void onPlayerJoin(final PlayerJoinEvent event) {
 		final Player player = event.getPlayer();
 		final PvPlayer pvPlayer = ph.get(player);
-		pvPlayer.updatePlayer(player);
 		ScheduleUtils.runAsync(() -> {
 			if (player.isOp() || player.hasPermission("pvpmanager.admin")) {
 				Messages.sendQueuedMsgs(pvPlayer);
 			}
 		});
-
 	}
 
 	@EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -217,7 +254,7 @@ public class PlayerListener implements Listener {
 
 		final PvPlayer pvPlayer = ph.get(event.getPlayer());
 		if (pvPlayer.isInCombat()) {
-			ph.untag(pvPlayer);
+			pvPlayer.unTag();
 		}
 	}
 
@@ -234,8 +271,8 @@ public class PlayerListener implements Listener {
 		if (event.getCause().equals(TeleportCause.ENDER_PEARL) && Settings.isBlockEnderPearl()) {
 			event.setCancelled(true);
 			pvplayer.message(Messages.getEnderpearlBlockedIncombat());
-		} else if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.9") && event.getCause() == TeleportCause.CHORUS_FRUIT
-				&& Settings.isBlockChorusFruit()) {
+		} else if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_9) && event.getCause() == TeleportCause.CHORUS_FRUIT
+		        && Settings.isBlockChorusFruit()) {
 			event.setCancelled(true);
 			pvplayer.message(Messages.getChorusBlockedInCombat());
 		} else if (event.getCause().equals(TeleportCause.COMMAND) && Settings.isBlockTeleport()) {
@@ -273,7 +310,7 @@ public class PlayerListener implements Listener {
 
 		if (event.getState() == State.CAUGHT_ENTITY && event.getCaught() instanceof Player) {
 			final Player caught = (Player) event.getCaught();
-			final CancelResult result = ph.tryCancel(player, caught);
+			final ProtectionResult result = ph.tryCancel(player, caught);
 			if (result.isProtected()) {
 				event.setCancelled(true);
 				Messages.messageProtection(result, player, caught);

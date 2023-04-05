@@ -3,6 +3,8 @@ package me.chancesd.pvpmanager.player.nametag;
 import java.util.UUID;
 
 import org.bukkit.ChatColor;
+import org.bukkit.scoreboard.DisplaySlot;
+import org.bukkit.scoreboard.Objective;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -10,6 +12,7 @@ import me.NoChance.PvPManager.PvPlayer;
 import me.NoChance.PvPManager.Settings.Settings;
 import me.NoChance.PvPManager.Utils.CombatUtils;
 import me.NoChance.PvPManager.Utils.Log;
+import me.NoChance.PvPManager.Utils.MCVersion;
 
 public class BukkitNameTag extends NameTag {
 
@@ -20,7 +23,10 @@ public class BukkitNameTag extends NameTag {
 	private String previousTeamName;
 	private final String combatTeamID;
 	private final Scoreboard scoreboard;
-
+	private static final String PVPOFF = "PvPOff";
+	private static final String PVPON = "PvPOn";
+	private static final String HEALTHOBJ = "PvP_Health";
+	private static Objective health;
 
 	public BukkitNameTag(final PvPlayer p) {
 		super(p);
@@ -48,13 +54,13 @@ public class BukkitNameTag extends NameTag {
 		}
 		if (Settings.isToggleNametagsEnabled()) {
 			if (!pvpOnPrefix.isEmpty()) {
-				if (scoreboard.getTeam("PvPOn") != null) {
-					pvpOn = scoreboard.getTeam("PvPOn");
+				if (scoreboard.getTeam(PVPON) != null) {
+					pvpOn = scoreboard.getTeam(PVPON);
 				} else {
-					pvpOn = scoreboard.registerNewTeam("PvPOn");
+					pvpOn = scoreboard.registerNewTeam(PVPON);
 					pvpOn.setCanSeeFriendlyInvisibles(false);
 					pvpOn.setPrefix(pvpOnPrefix);
-					if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.13")) {
+					if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_13)) {
 						final ChatColor nameColor = getLastColor(pvpOnPrefix);
 						if (nameColor != null) {
 							pvpOn.setColor(nameColor);
@@ -63,13 +69,13 @@ public class BukkitNameTag extends NameTag {
 				}
 			}
 			if (!pvpOffPrefix.isEmpty()) {
-				if (scoreboard.getTeam("PvPOff") != null) {
-					pvpOff = scoreboard.getTeam("PvPOff");
+				if (scoreboard.getTeam(PVPOFF) != null) {
+					pvpOff = scoreboard.getTeam(PVPOFF);
 				} else {
-					pvpOff = scoreboard.registerNewTeam("PvPOff");
+					pvpOff = scoreboard.registerNewTeam(PVPOFF);
 					pvpOff.setCanSeeFriendlyInvisibles(false);
 					pvpOff.setPrefix(pvpOffPrefix);
-					if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.13")) {
+					if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_13)) {
 						final ChatColor nameColor = getLastColor(pvpOffPrefix);
 						if (nameColor != null) {
 							pvpOff.setColor(nameColor);
@@ -79,6 +85,14 @@ public class BukkitNameTag extends NameTag {
 			}
 			// set pvp tag if player has pvp nametags on
 			setPvP(pvPlayer.hasPvPEnabled());
+		}
+		if (Settings.isHealthBelowName() && health == null) {
+			if (scoreboard.getObjective(HEALTHOBJ) != null) {
+				health = scoreboard.getObjective(HEALTHOBJ);
+			} else {
+				health = scoreboard.registerNewObjective(HEALTHOBJ, "health", Settings.getHealthBelowNameSymbol());
+				health.setDisplaySlot(DisplaySlot.BELOW_NAME);
+			}
 		}
 	}
 
@@ -138,7 +152,7 @@ public class BukkitNameTag extends NameTag {
 				return;
 			restoringSent = true;
 			// Some plugin is unregistering teams when it shouldn't
-			Log.severe("Error restoring nametag for: " + pvPlayer.getName());
+			Log.warning("Error restoring nametag for: " + pvPlayer.getName());
 		} finally {
 			previousTeamName = null;
 		}
@@ -170,7 +184,7 @@ public class BukkitNameTag extends NameTag {
 			if (unregisteredSent)
 				return;
 			unregisteredSent = true;
-			Log.severe("Team was already unregistered for player: " + pvPlayer.getName());
+			Log.warning("Team was already unregistered for player: " + pvPlayer.getName());
 		}
 	}
 

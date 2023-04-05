@@ -10,19 +10,19 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import me.NoChance.PvPManager.PvPManager;
-import me.NoChance.PvPManager.Dependencies.BaseDependency;
-import me.NoChance.PvPManager.Dependencies.Dependency;
 import me.NoChance.PvPManager.Dependencies.DependencyException;
-import me.NoChance.PvPManager.Dependencies.DisguiseDependency;
-import me.NoChance.PvPManager.Dependencies.GodDependency;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.PvPDependency;
-import me.NoChance.PvPManager.Dependencies.RegionDependency;
-import me.NoChance.PvPManager.Dependencies.WarDependency;
-import me.NoChance.PvPManager.Dependencies.WorldGuardHook;
-import me.NoChance.PvPManager.Dependencies.Hooks.CooldownsXHook;
+import me.NoChance.PvPManager.Dependencies.API.BaseDependency;
+import me.NoChance.PvPManager.Dependencies.API.Dependency;
+import me.NoChance.PvPManager.Dependencies.API.DisguiseDependency;
+import me.NoChance.PvPManager.Dependencies.API.GodDependency;
+import me.NoChance.PvPManager.Dependencies.API.PvPDependency;
+import me.NoChance.PvPManager.Dependencies.API.RegionDependency;
+import me.NoChance.PvPManager.Dependencies.API.WarDependency;
+import me.NoChance.PvPManager.Dependencies.API.WorldGuardDependency;
 import me.NoChance.PvPManager.Dependencies.Hooks.EssentialsHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.FactionsUUIDHook;
+import me.NoChance.PvPManager.Dependencies.Hooks.GriefPreventionHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.LibsDisguisesHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.McMMOHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.PlaceHolderAPIHook;
@@ -36,6 +36,7 @@ import me.NoChance.PvPManager.Listeners.MoveListener1_9;
 import me.NoChance.PvPManager.Settings.Settings;
 import me.NoChance.PvPManager.Utils.CombatUtils;
 import me.NoChance.PvPManager.Utils.Log;
+import me.NoChance.PvPManager.Utils.MCVersion;
 import net.milkbowl.vault.economy.Economy;
 
 public class DependencyManager {
@@ -49,11 +50,6 @@ public class DependencyManager {
 
 	public DependencyManager() {
 		setupHooks();
-		if (Bukkit.getPluginManager().getPlugin("GriefPrevention") != null) {
-			Log.warning("GriefPrevention has been detected. GriefPrevention has some combat features without showing any feedback messages. "
-			        + "Make sure to disable Punish Logout and set tag time to 0 seconds in GP config. "
-			        + "Issues with those features often get wrongly blamed on PvPManager and cause conflicts due to the lack of GP feedback messages.");
-		}
 	}
 
 	private void setupHooks() {
@@ -123,6 +119,9 @@ public class DependencyManager {
 		case COOLDOWNSX:
 			registerDependency(new CooldownsXHook(hook));
 			break;
+		case GRIEFPREVENTION:
+			registerDependency(new GriefPreventionHook(hook));
+			break;
 		default:
 			registerDependency(new BaseDependency(hook));
 			break;
@@ -170,9 +169,9 @@ public class DependencyManager {
 
 	public void startListeners(final PvPManager plugin) {
 		if (Settings.borderHoppingPushback() && !regionChecks.isEmpty()) {
-			if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.9")) {
+			if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_9)) {
 				Bukkit.getPluginManager().registerEvents(new MoveListener1_9(plugin.getPlayerHandler()), plugin);
-			} else if (CombatUtils.isVersionAtLeast(Settings.getMinecraftVersion(), "1.8")) {
+			} else if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_8)) {
 				Bukkit.getPluginManager().registerEvents(new MoveListener(plugin.getPlayerHandler()), plugin);
 			} else {
 				Log.warning("Pushback on border hopping not available for 1.7.10 or below! Feature disabled!");
@@ -180,7 +179,7 @@ public class DependencyManager {
 			}
 		}
 		if (isDependencyEnabled(Hook.WORLDGUARD)) {
-			((WorldGuardHook) getDependency(Hook.WORLDGUARD)).startListener(plugin.getPlayerHandler());
+			((WorldGuardDependency) getDependency(Hook.WORLDGUARD)).startListener(plugin.getPlayerHandler());
 		}
 	}
 

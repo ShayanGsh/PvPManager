@@ -1,6 +1,8 @@
-package me.NoChance.PvPManager.Dependencies;
+package me.NoChance.PvPManager.Dependencies.API;
 
 import org.bukkit.plugin.java.JavaPlugin;
+
+import me.NoChance.PvPManager.Dependencies.Hook;
 
 public interface Dependency {
 
