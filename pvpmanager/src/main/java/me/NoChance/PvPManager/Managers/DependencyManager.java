@@ -10,16 +10,10 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import me.NoChance.PvPManager.PvPManager;
+import me.NoChance.PvPManager.Dependencies.BaseDependency;
 import me.NoChance.PvPManager.Dependencies.DependencyException;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.API.BaseDependency;
-import me.NoChance.PvPManager.Dependencies.API.Dependency;
-import me.NoChance.PvPManager.Dependencies.API.DisguiseDependency;
-import me.NoChance.PvPManager.Dependencies.API.GodDependency;
-import me.NoChance.PvPManager.Dependencies.API.PvPDependency;
-import me.NoChance.PvPManager.Dependencies.API.RegionDependency;
-import me.NoChance.PvPManager.Dependencies.API.WarDependency;
-import me.NoChance.PvPManager.Dependencies.API.WorldGuardDependency;
+import me.NoChance.PvPManager.Dependencies.Hooks.CooldownsXHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.EssentialsHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.FactionsUUIDHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.GriefPreventionHook;
@@ -31,6 +25,13 @@ import me.NoChance.PvPManager.Dependencies.Hooks.SimpleClansHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.VaultHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.WorldGuardLegacyHook;
 import me.NoChance.PvPManager.Dependencies.Hooks.WorldGuardModernHook;
+import me.NoChance.PvPManager.Dependencies.Interfaces.Dependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.DisguiseDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.GodDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.PvPDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.RegionDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.WarDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.WorldGuardDependency;
 import me.NoChance.PvPManager.Listeners.MoveListener;
 import me.NoChance.PvPManager.Listeners.MoveListener1_9;
 import me.NoChance.PvPManager.Settings.Settings;
@@ -169,9 +170,9 @@ public class DependencyManager {
 
 	public void startListeners(final PvPManager plugin) {
 		if (Settings.borderHoppingPushback() && !regionChecks.isEmpty()) {
-			if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_9)) {
+			if (MCVersion.isAtLeast(MCVersion.V1_9)) {
 				Bukkit.getPluginManager().registerEvents(new MoveListener1_9(plugin.getPlayerHandler()), plugin);
-			} else if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_8)) {
+			} else if (MCVersion.isAtLeast(MCVersion.V1_8)) {
 				Bukkit.getPluginManager().registerEvents(new MoveListener(plugin.getPlayerHandler()), plugin);
 			} else {
 				Log.warning("Pushback on border hopping not available for 1.7.10 or below! Feature disabled!");

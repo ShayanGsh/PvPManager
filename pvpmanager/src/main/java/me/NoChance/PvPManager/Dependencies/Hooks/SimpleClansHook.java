@@ -2,11 +2,11 @@ package me.NoChance.PvPManager.Dependencies.Hooks;
 
 import org.bukkit.entity.Player;
 
+import me.NoChance.PvPManager.Dependencies.BaseDependency;
 import me.NoChance.PvPManager.Dependencies.DependencyException;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.API.BaseDependency;
-import me.NoChance.PvPManager.Dependencies.API.PvPDependency;
-import me.NoChance.PvPManager.Dependencies.API.WarDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.PvPDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.WarDependency;
 import me.NoChance.PvPManager.Settings.Settings;
 import net.sacredlabyrinth.phaed.simpleclans.ClanPlayer;
 import net.sacredlabyrinth.phaed.simpleclans.SimpleClans;

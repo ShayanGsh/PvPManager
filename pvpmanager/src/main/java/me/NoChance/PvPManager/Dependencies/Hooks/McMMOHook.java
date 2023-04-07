@@ -4,9 +4,9 @@ import org.bukkit.entity.Player;
 
 import com.gmail.nossr50.api.PartyAPI;
 
+import me.NoChance.PvPManager.Dependencies.BaseDependency;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.API.BaseDependency;
-import me.NoChance.PvPManager.Dependencies.API.PvPDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.PvPDependency;
 import me.NoChance.PvPManager.Utils.Log;
 
 public class McMMOHook extends BaseDependency implements PvPDependency {

@@ -1,6 +1,7 @@
 package me.NoChance.PvPManager.Managers;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -17,7 +18,7 @@ import org.jetbrains.annotations.NotNull;
 import me.NoChance.PvPManager.PvPManager;
 import me.NoChance.PvPManager.PvPlayer;
 import me.NoChance.PvPManager.Dependencies.Hook;
-import me.NoChance.PvPManager.Dependencies.API.WorldGuardDependency;
+import me.NoChance.PvPManager.Dependencies.Interfaces.WorldGuardDependency;
 import me.NoChance.PvPManager.Events.PlayerCombatLogEvent;
 import me.NoChance.PvPManager.Player.ProtectionResult;
 import me.NoChance.PvPManager.Settings.Messages;
@@ -128,7 +129,7 @@ public class PlayerHandler {
 		player.cleanForRemoval();
 		players.remove(player.getUUID());
 		if (player.isInCombat()) {
-			untag(player);
+			player.unTag();
 		}
 	}
 
@@ -258,7 +259,7 @@ public class PlayerHandler {
 	public final Set<PvPlayer> getPlayersInCombat() {
 		return tagTask.getTaggedPlayers();
 	}
-	
+
 	@NotNull
 	public final PvPManager getPlugin() {
 		return plugin;

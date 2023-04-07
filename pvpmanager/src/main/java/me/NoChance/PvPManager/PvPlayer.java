@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -102,7 +103,7 @@ public class PvPlayer extends EcoPlayer {
 	public final void setNewbie(final boolean newbie) {
 		if (newbie) {
 			this.newbieTask = new NewbieTask(this, 0);
-			message(Messages.getNewbieProtection(newbieTask.getFinishTime()));			
+			message(Messages.getNewbieProtection(newbieTask.getFinishTime()));
 		} else if (this.newbie && newbieTask != null) {
 			if (newbieTask.isScheduled()) {
 				message(Messages.getNewbieProtectionEnd());
@@ -136,7 +137,7 @@ public class PvPlayer extends EcoPlayer {
 		if (nametag != null && Settings.useNameTag()) {
 			nametag.setInCombat();
 		}
-		if (Settings.isGlowingInCombat() && CombatUtils.isMCVersionAtLeast(MCVersion.V1_9)) {
+		if (Settings.isGlowingInCombat() && MCVersion.isAtLeast(MCVersion.V1_9)) {
 			getPlayer().setGlowing(true);
 		}
 
@@ -166,7 +167,7 @@ public class PvPlayer extends EcoPlayer {
 			if (nametag != null && Settings.useNameTag()) {
 				nametag.restoreNametag();
 			}
-			if (Settings.isGlowingInCombat() && CombatUtils.isMCVersionAtLeast(MCVersion.V1_9)) {
+			if (Settings.isGlowingInCombat() && MCVersion.isAtLeast(MCVersion.V1_9)) {
 				getPlayer().setGlowing(false); // effect should pass by itself but now players can get untagged before tag expires
 			}
 
@@ -232,9 +233,9 @@ public class PvPlayer extends EcoPlayer {
 		return true;
 	}
 
-	public final void setItemCooldown(@NonNull final Material material, final int time) {
+	public final void setItemCooldown(@NotNull final Material material, final int time) {
 		itemCooldown.put(material, System.currentTimeMillis() + time * 1000);
-		if (CombatUtils.isMCVersionAtLeast(MCVersion.V1_11_2)) {
+		if (MCVersion.isAtLeast(MCVersion.V1_11_2)) {
 			getPlayer().setCooldown(material, time * 20);
 		}
 	}
