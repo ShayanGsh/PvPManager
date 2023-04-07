@@ -34,6 +34,9 @@ import org.yaml.snakeyaml.Yaml;
 @SuppressWarnings("unused")
 public class ConfigUpdater {
 
+	private ConfigUpdater() {
+	}
+
 	/**
 	 * Update a yaml file from a resource inside your plugin jar
 	 *

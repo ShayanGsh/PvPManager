@@ -108,7 +108,6 @@ public final class Settings {
 	private static boolean blockInteractInCombat;
 	private static boolean untagEnemy;
 	private static boolean killAbuseWarn;
-	private static ChatColor teamColor;
 	private static String actionBarMessage;
 	private static String actionBarSymbol;
 	private static int actionBarTotalBars;
